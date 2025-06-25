@@ -1,6 +1,0 @@
-{
-  "name": "static-site-with-upload",
-  "dependencies": {
-    "@vercel/blob": "^0.18.0"
-  }
-}

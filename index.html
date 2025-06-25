@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vercel Blob 客户端上传</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .warning {
+            background: rgba(255, 204, 0, 0.2);
+            border-left: 4px solid #ffcc00;
+            padding: 15px;
+            margin: 25px 0;
+            border-radius: 4px;
+            text-align: left;
+        }
+        
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 40px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 20px 0;
+            position: relative;
+        }
+        
+        .upload-area:hover, .upload-area.dragover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: #fff;
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        
+        button {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+        
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            margin: 25px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(to right, #00c9ff, #92fe9d);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .result-container {
+            margin-top: 30px;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .result-title i {
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+        
+        .file-link {
+            color: #00ffea;
+            word-break: break-all;
+            margin: 15px 0;
+            display: block;
+        }
+        
+        .preview-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .preview-container img, .preview-container video {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .file-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .info-item {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .info-value {
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-top: 5px;
+        }
+        
+        footer {
+            margin-top: 40px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .file-info {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Vercel Blob 客户端上传</h1>
+        <p class="subtitle">直接上传文件到 Vercel Blob 存储 - 无需服务器</p>
+        
+        <div class="warning">
+            <strong>安全提示：</strong> 
+            此方法会暴露你的 Vercel Blob 令牌给客户端。请仅用于非敏感内容和个人项目。
+            对于生产环境，建议使用服务器端中转上传。
+        </div>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <h3>点击或拖放文件到此处</h3>
+            <p>支持图片、文档、视频等文件类型 (最大 4.5MB)</p>
+            <input type="file" id="fileInput" class="file-input">
+        </div>
+        
+        <div id="selectedFile" style="margin: 15px 0; font-weight: bold; display: none;">
+            <i class="fas fa-file"></i> <span id="fileName"></span>
+        </div>
+        
+        <button id="uploadBtn" disabled>
+            <i class="fas fa-upload"></i> 上传文件
+        </button>
+        
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="result-container" id="resultContainer">
+            <div class="result-title">
+                <i class="fas fa-check-circle"></i> 上传成功！
+            </div>
+            <p>您的文件已上传到 Vercel Blob 存储：</p>
+            <a href="#" target="_blank" class="file-link" id="fileLink"></a>
+            
+            <div class="preview-container" id="previewContainer"></div>
+            
+            <div class="file-info">
+                <div class="info-item">
+                    <div>文件类型</div>
+                    <div class="info-value" id="fileType"></div>
+                </div>
+                <div class="info-item">
+                    <div>文件大小</div>
+                    <div class="info-value" id="fileSize"></div>
+                </div>
+                <div class="info-item">
+                    <div>上传时间</div>
+                    <div class="info-value" id="uploadTime"></div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>使用 Vercel Blob 存储 | 客户端直接上传实现</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        // 从 CDN 导入 Vercel Blob 客户端库
+        import { put } from 'https://esm.sh/@vercel/blob';
+        
+        // ====== 配置区域 - 修改这里 ======
+        // 替换成你的 Vercel Blob 令牌
+        const BLOB_TOKEN = 'vercel_blob_rw_AbHxmrCwQX5t0pqe_pDgy704jRPJ5X8JHYYALrPADk9koSn';
+        // ================================
+        
+        // DOM 元素
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressBar = document.getElementById('progressBar');
+        const resultContainer = document.getElementById('resultContainer');
+        const fileLink = document.getElementById('fileLink');
+        const fileNameDisplay = document.getElementById('fileName');
+        const selectedFile = document.getElementById('selectedFile');
+        const previewContainer = document.getElementById('previewContainer');
+        const fileType = document.getElementById('fileType');
+        const fileSize = document.getElementById('fileSize');
+        const uploadTime = document.getElementById('uploadTime');
+        
+        let selectedFileData = null;
+        
+        // 文件选择处理
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                selectedFileData = e.target.files[0];
+                fileNameDisplay.textContent = selectedFileData.name;
+                selectedFile.style.display = 'block';
+                uploadBtn.disabled = false;
+            }
+        });
+        
+        // 拖放功能
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            }
+        });
+        
+        // 上传功能
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFileData) return;
+            
+            // 验证文件大小
+            if (selectedFileData.size > 4.5 * 1024 * 1024) {
+                alert('文件太大！Vercel Blob 免费版最大支持 4.5MB');
+                return;
+            }
+            
+            try {
+                // 重置UI
+                progressBar.style.width = '0%';
+                resultContainer.style.display = 'none';
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+                
+                // 使用 Vercel Blob SDK 上传
+                const blob = await put(selectedFileData.name, selectedFileData, {
+                    access: 'public',
+                    token: BLOB_TOKEN,
+                    onProgress: (event) => {
+                        const percent = Math.round((event.loaded / selectedFileData.size) * 100);
+                        progressBar.style.width = `${percent}%`;
+                    }
+                });
+                
+                // 上传成功
+                showSuccess(blob);
+            } catch (error) {
+                console.error('上传失败:', error);
+                alert(`上传失败: ${error.message}`);
+                uploadBtn.disabled = false;
+                uploadBtn.innerHTML = '<i class="fas fa-upload"></i> 上传文件';
+            }
+        });
+        
+        // 显示成功结果
+        function showSuccess(blob) {
+            // 更新UI
+            uploadBtn.innerHTML = '<i class="fas fa-check"></i> 上传完成';
+            resultContainer.style.display = 'block';
+            
+            // 设置文件信息
+            fileLink.href = blob.url;
+            fileLink.textContent = blob.url;
+            fileType.textContent = blob.contentType || '未知类型';
+            fileSize.textContent = formatFileSize(blob.size || selectedFileData.size);
+            uploadTime.textContent = new Date().toLocaleTimeString();
+            
+            // 预览文件
+            previewContainer.innerHTML = '';
+            if (blob.contentType.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = blob.url;
+                img.alt = '上传的图片';
+                previewContainer.appendChild(img);
+            } else if (blob.contentType.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.src = blob.url;
+                video.controls = true;
+                video.style.maxWidth = '100%';
+                previewContainer.appendChild(video);
+            } else if (blob.contentType === 'application/pdf') {
+                const link = document.createElement('a');
+                link.href = blob.url;
+                link.textContent = '查看PDF文件';
+                link.target = '_blank';
+                link.className = 'file-link';
+                previewContainer.appendChild(link);
+            } else {
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-file fa-5x';
+                icon.style.opacity = '0.7';
+                previewContainer.appendChild(icon);
+            }
+        }
+        
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' bytes';
+            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            else return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+    </script>
+</body>
+</html>
